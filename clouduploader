@@ -1,0 +1,100 @@
+#!/bin/bash
+
+# Check if Azure CLI is installed
+if ! command -v az &> /dev/null; then
+    echo "Error: Azure CLI is not installed. Please install it and try again."
+    exit 1
+fi
+
+# Check if pv is installed for progress bar
+if ! command -v pv &> /dev/null; then
+    echo "Error: pv is not installed. Please install it (e.g., sudo apt-get install pv) and try again."
+    exit 1
+fi
+
+# Check if at least one file is provided
+if [ "$#" -eq 0 ]; then
+    echo "Usage: $0 <file-path1> [file-path2] [file-path3] ..."
+    exit 1
+fi
+
+# Azure Blob Storage Example (Replace with your actual Azure details)
+AZURE_ACCOUNT_NAME="bashlearningstorage"
+AZURE_CONTAINER_NAME="bashtest"
+AZURE_ACCOUNT_KEY="Yqvzon6bC9tsn9Z8Buq83rOswdBa/BlUmrreJTrcHANDKOhW4y6+mDsRD9K87PHqOXyYxhHCn1rF+AStUQJQ6w=="
+
+for FILE in "$@"; do
+    # Check if the file exists
+    if [ ! -f "$FILE" ]; then
+        echo "Error: File not found - $FILE. Skipping."
+        continue
+    fi
+
+    # Check if the file already exists in Azure Blob Storage
+    BLOB_NAME="$(basename "$FILE")"
+    if az storage blob show --account-name "$AZURE_ACCOUNT_NAME" \
+                            --container-name "$AZURE_CONTAINER_NAME" \
+                            --name "$BLOB_NAME" &> /dev/null; then
+        # File exists - prompt user for action
+        read -p "File '$BLOB_NAME' already exists. Overwrite, skip, or rename? [o/s/r]: " ACTION
+
+        case $ACTION in
+            o)
+                # Overwrite the existing file
+                ;;
+            s)
+                # Skip this file and continue with the next one
+                echo "Skipping file '$FILE'."
+                continue
+                ;;
+            r)
+                # Rename the file before uploading
+                TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+                BLOB_NAME="${TIMESTAMP}_${BLOB_NAME}"
+                ;;
+            *)
+                # Default action is to skip the file
+                echo "Invalid option. Skipping file '$FILE'."
+                continue
+                ;;
+        esac
+    fi
+
+    # Encrypt the file before uploading (using gpg for simplicity)
+    ENCRYPTED_FILE="${FILE}.gpg"
+    gpg --symmetric --cipher-algo AES256 --output "$ENCRYPTED_FILE" "$FILE"
+
+    # Upload the file to Azure Blob Storage with a progress bar
+    az storage blob upload --account-name "$AZURE_ACCOUNT_NAME" \
+                           --container-name "$AZURE_CONTAINER_NAME" \
+                           --name "$BLOB_NAME" \
+                           --type "block" \
+                           --content-type "application/octet-stream" \
+                           --account-key "$AZURE_ACCOUNT_KEY" \
+                           --type "block" \
+                           --content-type "application/octet-stream" \
+                           --file "$ENCRYPTED_FILE" | pv -lep -s "$(stat -c %s "$ENCRYPTED_FILE")"
+
+    # Generate a shareable link post-upload
+    SAS_TOKEN=$(az storage blob generate-sas --account-name "$AZURE_ACCOUNT_NAME" \
+                                             --container-name "$AZURE_CONTAINER_NAME" \
+                                             --name "$BLOB_NAME" \
+                                             --permissions "r" \
+                                             --expiry "$(date -u -d '7 days' '+%Y-%m-%dT%H:%MZ')" \
+                                             --account-key "$AZURE_ACCOUNT_KEY")
+    SHAREABLE_LINK="https://$AZURE_ACCOUNT_NAME.blob.core.windows.net/$AZURE_CONTAINER_NAME/$BLOB_NAME?$SAS_TOKEN"
+
+    # Provide feedback on successful upload
+    if [ $? -eq 0 ]; then
+        echo "Upload successful: $FILE"
+        echo "Shareable link: $SHAREABLE_LINK"
+    else
+        echo "Error uploading $FILE"
+    fi
+
+    # Remove the encrypted file after upload
+    rm "$ENCRYPTED_FILE"
+done
+
+
+
