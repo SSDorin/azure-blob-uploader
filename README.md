@@ -1,8 +1,8 @@
-# Cloud Uploader
+# Azure Blob Uploader
 
 ## Overview
 
-Cloud Uploader is a Bash script designed to securely upload files to Azure Blob Storage. It features a progress bar for visualization, file encryption using GPG, and the generation of shareable links for the uploaded files.
+clouduploader is a Bash script designed to securely upload files to Azure Blob Storage. It features a progress bar for visualization, file encryption using GPG, and the generation of shareable links for the uploaded files.
 
 ## Prerequisites
 
