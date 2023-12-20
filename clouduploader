@@ -19,9 +19,9 @@ if [ "$#" -eq 0 ]; then
 fi
 
 # Azure Blob Storage Example (Replace with your actual Azure details)
-AZURE_ACCOUNT_NAME="bashlearningstorage"
-AZURE_CONTAINER_NAME="bashtest"
-AZURE_ACCOUNT_KEY="Yqvzon6bC9tsn9Z8Buq83rOswdBa/BlUmrreJTrcHANDKOhW4y6+mDsRD9K87PHqOXyYxhHCn1rF+AStUQJQ6w=="
+AZURE_ACCOUNT_NAME=
+AZURE_CONTAINER_NAME=
+AZURE_ACCOUNT_KEY=
 
 for FILE in "$@"; do
     # Check if the file exists
